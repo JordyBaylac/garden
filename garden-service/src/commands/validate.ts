@@ -28,6 +28,10 @@ export class ValidateCommand extends Command {
     const graph = await garden.getConfigGraph()
     await graph.getModules()
 
+    // const rawLog = await runGarden(garden.projectRoot, ["build", "-l", "4"])
+    // console.log(rawLog.join("\n"))
+    // console.log(findTasks({ entries: rawLog, taskType: "build",  taskName: "node-module" }))
+
     return {}
   }
 }

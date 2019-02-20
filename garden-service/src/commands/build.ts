@@ -86,6 +86,8 @@ export class BuildCommand extends Command<BuildArguments, BuildOptions> {
       },
     })
 
+    // log.serialize(2)
+
     return handleTaskResults(log, "build", results)
   }
 }

@@ -13,6 +13,7 @@ import { safeDump } from "js-yaml"
 import { coreCommands } from "../commands/commands"
 import { DeepPrimitiveMap } from "../config/common"
 import { shutdown, sleep, getPackageVersion } from "../util/util"
+import { deline } from "../util/string"
 import {
   BooleanParameter,
   ChoicesParameter,
@@ -28,6 +29,7 @@ import { getLogger, Logger, LoggerType } from "../logger/logger"
 import { LogLevel } from "../logger/log-node"
 import { BasicTerminalWriter } from "../logger/writers/basic-terminal-writer"
 import { FancyTerminalWriter } from "../logger/writers/fancy-terminal-writer"
+import { JSONTerminalWriter } from "../logger/writers/json-terminal-writer"
 import { FileWriter } from "../logger/writers/file-writer"
 import { Writer } from "../logger/writers/base"
 
@@ -57,6 +59,12 @@ const OUTPUT_RENDERERS = {
   yaml: (data: DeepPrimitiveMap) => {
     return safeDump(data, { noRefs: true, skipInvalid: true })
   },
+}
+
+const WRITER_CLASSES = {
+  [LoggerType.basic]: BasicTerminalWriter,
+  [LoggerType.fancy]: FancyTerminalWriter,
+  [LoggerType.json]: JSONTerminalWriter,
 }
 
 const FILE_WRITER_CONFIGS = [
@@ -103,12 +111,18 @@ export const GLOBAL_OPTIONS = {
   loglevel: new ChoicesParameter({
     alias: "l",
     choices: getLogLevelChoices(),
-    help:
-      "Set logger level. Values can be either string or numeric and are prioritized from 0 to 5 " +
-      "(highest to lowest) as follows: error: 0, warn: 1, info: 2, verbose: 3, debug: 4, silly: 5.",
+    help: deline`
+      Set logger level. Values can be either string or numeric and are prioritized from 0 to 5
+      (highest to lowest) as follows: error: 0, warn: 1, info: 2, verbose: 3, debug: 4, silly: 5.`,
     hints:
       "[enum] [default: info] [error || 0, warn || 1, info || 2, verbose || 3, debug || 4, silly || 5]",
     defaultValue: LogLevel[LogLevel.info],
+  }),
+  jsonLog: new BooleanParameter({
+    help: deline`
+      Format log entries as JSON. Unlike the default format, log entries are not updated in-place when this
+      format is used.`,
+    defaultValue: false,
   }),
   output: new ChoicesParameter({
     alias: "o",
@@ -127,11 +141,12 @@ function initLogger({ level, logEnabled, loggerType, emoji }: {
   let writers: Writer[] = []
 
   if (logEnabled) {
-    if (loggerType === LoggerType.fancy) {
-      writers.push(new FancyTerminalWriter())
-    } else if (loggerType === LoggerType.basic) {
-      writers.push(new BasicTerminalWriter())
-    }
+    writers.push(new WRITER_CLASSES[loggerType]())
+    // if (loggerType === LoggerType.fancy) {
+    //   writers.push(new FancyTerminalWriter())
+    // } else if (loggerType === LoggerType.basic) {
+    //   writers.push(new BasicTerminalWriter())
+    // }
   }
 
   return Logger.initialize({ level, writers, useEmoji: emoji })
@@ -215,7 +230,6 @@ export class GardenCli {
 
     const {
       arguments: args = {},
-      loggerType = DEFAULT_CLI_LOGGER_TYPE,
       options = {},
     } = command
 
@@ -233,7 +247,14 @@ export class GardenCli {
       const parsedArgs = filterByKeys(argv, argKeys)
       const parsedOpts = filterByKeys(argv, optKeys.concat(globalKeys))
       const root = resolve(process.cwd(), parsedOpts.root)
-      const { emoji, env, loglevel, silent, output } = parsedOpts
+      const { emoji, env, loglevel, jsonLog, silent, output } = parsedOpts
+
+      let loggerType
+      if (jsonLog) {
+        loggerType = LoggerType.json
+      } else {
+        loggerType = command.loggerType || DEFAULT_CLI_LOGGER_TYPE
+      }
 
       // Init logger
       const logEnabled = !silent && !output && loggerType !== LoggerType.quiet

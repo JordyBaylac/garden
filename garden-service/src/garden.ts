@@ -102,6 +102,7 @@ export interface GardenOpts {
   environmentName?: string,
   log?: LogEntry,
   plugins?: Plugins,
+  jsonLog?: boolean,
 }
 
 const scanLock = new AsyncLock()
@@ -164,7 +165,7 @@ export class Garden {
     this.pluginModuleConfigs = []
     this.registeredPlugins = {}
 
-    this.taskGraph = new TaskGraph(this, this.log)
+    this.taskGraph = new TaskGraph(this, this.log) // TODO: Add integ logging option
     this.actions = new ActionHelper(this)
     this.events = new EventBus()
     this.watcher = new Watcher(this, this.log)

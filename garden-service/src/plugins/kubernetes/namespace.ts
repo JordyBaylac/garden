@@ -7,7 +7,7 @@
  */
 
 import { PluginContext } from "../../plugin-context"
-import { KubeApi } from "./api"
+import { KubeApi, BaseKubeApi } from "./api"
 import { KubernetesProvider } from "./kubernetes"
 import { name as providerName } from "./kubernetes"
 import { AuthenticationError } from "../../exceptions"
@@ -100,7 +100,7 @@ export function getMetadataNamespace(ctx: PluginContext, provider: KubernetesPro
   return getNamespace({ ctx, provider, suffix: "metadata" })
 }
 
-export async function getAllNamespaces(api: KubeApi): Promise<string[]> {
+export async function getAllNamespaces<A extends BaseKubeApi>(api: A): Promise<string[]> {
   const allNamespaces = await api.core.listNamespace()
   return allNamespaces.body.items
     .map(n => n.metadata.name)

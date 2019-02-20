@@ -23,7 +23,7 @@ export interface TaskParams {
 }
 
 export abstract class BaseTask {
-  abstract type: string
+  abstract type
   abstract depType: DependencyGraphNodeType
   garden: Garden
   log: LogEntry

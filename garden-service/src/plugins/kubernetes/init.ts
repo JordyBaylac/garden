@@ -22,7 +22,7 @@ import {
 import { deline } from "../../util/string"
 import { sleep, getPackageVersion } from "../../util/util"
 import { joiUserIdentifier } from "../../config/common"
-import { KubeApi } from "./api"
+import { KubeApi, BaseKubeApi } from "./api"
 import {
   getAppNamespace,
   getMetadataNamespace,
@@ -261,27 +261,31 @@ export async function cleanupEnvironment({ ctx, log }: CleanupEnvironmentParams)
   return {}
 }
 
-export async function deleteNamespaces(namespaces: string[], api: KubeApi, log: LogEntry) {
+export async function deleteNamespaces<A extends BaseKubeApi>(namespaces: string[], api: A, log?: LogEntry) {
   for (const ns of namespaces) {
     try {
       // Note: Need to call the delete method with an empty object
       // TODO: any cast is required until https://github.com/kubernetes-client/javascript/issues/52 is fixed
       await api.core.deleteNamespace(ns, <any>{})
     } catch (err) {
-      log.setError(err.message)
+      if (log) {
+        log.setError(err.message)
+      }
       const availableNamespaces = await getAllNamespaces(api)
       throw new NotFoundError(err, { namespace: ns, availableNamespaces })
     }
   }
 
-  // Wait until namespace has been deleted
+  // Wait until namespaces have been deleted
   const startTime = new Date().getTime()
   while (true) {
     await sleep(2000)
 
     const nsNames = await getAllNamespaces(api)
     if (intersection(nsNames, namespaces).length === 0) {
-      log.setSuccess()
+      if (log) {
+        log.setSuccess()
+      }
       break
     }
 

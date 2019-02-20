@@ -14,7 +14,7 @@ import hasAnsi = require("has-ansi")
 import { merge, padEnd, pick, flatten } from "lodash"
 import { BaseTask, TaskDefinitionError } from "./tasks/base"
 
-import { LogEntry } from "./logger/log-entry"
+import { LogEntry, TaskMetadata, TaskLogStatus } from "./logger/log-entry"
 import { toGardenError } from "./exceptions"
 import { Garden } from "./garden"
 
@@ -261,6 +261,7 @@ export class TaskGraph {
       section: "tasks",
       msg: `Processing task ${taskStyle(node.getKey())}`,
       status: "active",
+      taskMetadata: taskMetadataForLog(node.task, "active"),
     })
     this.logEntryMap[node.getKey()] = entry
   }
@@ -268,7 +269,16 @@ export class TaskGraph {
   private logTaskComplete(node: TaskNode, success: boolean) {
     const entry = this.logEntryMap[node.getKey()]
     if (entry) {
-      success ? entry.setSuccess() : entry.setError()
+      const keyStr = taskStyle(node.getKey())
+      if (success) {
+        const durationSecs = entry.getDuration(3)
+        const taskMetadata = taskMetadataForLog(node.task, "success")
+        taskMetadata.durationMs = durationSecs * 1000
+        entry.setSuccess({ msg: `Completed task ${keyStr} (took ${durationSecs} sec)`, taskMetadata })
+      } else {
+        const taskMetadata = taskMetadataForLog(node.task, "error")
+        entry.setError({ msg: `Failed task ${keyStr}`, taskMetadata })
+      }
     }
     this.logEntryMap.counter.setState(remainingTasksToStr(this.index.length))
   }
@@ -312,6 +322,16 @@ function getIndexKey(task: BaseTask) {
   }
 
   return key
+}
+
+function taskMetadataForLog(task: BaseTask, status: TaskLogStatus): TaskMetadata {
+  return {
+    type: task.type,
+    baseKey: task.getBaseKey(),
+    status,
+    id: task.id,
+    versionString: task.version.versionString,
+  }
 }
 
 class TaskNodeMap {

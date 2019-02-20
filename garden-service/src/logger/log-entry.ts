@@ -19,6 +19,16 @@ import { Logger } from "./logger"
 export type EmojiName = keyof typeof nodeEmoji.emoji
 export type LogSymbol = keyof typeof logSymbols | "empty"
 export type EntryStatus = "active" | "done" | "error" | "success" | "warn"
+export type TaskLogStatus = "active" | "success" | "error"
+
+export interface TaskMetadata {
+  type: string,
+  baseKey: string,
+  status: TaskLogStatus,
+  id: string,
+  versionString: string,
+  durationMs?: number,
+}
 
 export interface UpdateOpts {
   msg?: string | string[]
@@ -32,6 +42,7 @@ export interface UpdateOpts {
   status?: EntryStatus
   indent?: number
   childEntriesInheritLevel?: boolean
+  taskMetadata?: TaskMetadata // only used for rendering by the JSON writer
 }
 
 export interface CreateOpts extends UpdateOpts {
@@ -187,6 +198,22 @@ export class LogEntry extends LogNode {
       level: this.level,
       children: this.children,
     }))
+  }
+
+  serialize(logLevel: number) {
+    if (this.level > logLevel) {
+      return
+    }
+
+    const { msg, section } = this.opts
+    if (msg) {
+      const out = section ? `${section}: ${msg}` : msg
+      console.log(out)
+    }
+
+    for (const childEntry of this.children) {
+      childEntry.serialize(logLevel)
+    }
   }
 
   filterBySection(section: string): LogEntry[] {

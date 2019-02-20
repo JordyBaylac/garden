@@ -70,9 +70,7 @@ export class KubernetesError extends GardenBaseError {
   response?: any
 }
 
-export class KubeApi {
-  public context: string
-
+export class BaseKubeApi {
   public apiExtensions: Apiextensions_v1beta1Api
   public apps: Apps_v1Api
   public core: Core_v1Api
@@ -80,8 +78,7 @@ export class KubeApi {
   public policy: Policy_v1beta1Api
   public rbac: RbacAuthorization_v1Api
 
-  constructor(public provider: KubernetesProvider) {
-    this.context = provider.config.context
+  constructor(public context: string) {
     const config = getConfig(this.context)
 
     for (const [name, cls] of Object.entries(apiTypes)) {
@@ -206,6 +203,20 @@ export class KubeApi {
       },
     })
   }
+}
+
+/**
+ * Same as BaseKubeApi, but with a provider attached. This is by far the more commonly used class in the framework.
+ *
+ * The reason for this separation/inheritance is that the integration testing helpers need to access the k8s API
+ * outside of a particular Garden project (and thus use BaseKubeApi instead).
+ */
+export class KubeApi extends BaseKubeApi {
+
+  constructor(public provider: KubernetesProvider) {
+    super(provider.config.context)
+  }
+
 }
 
 function getConfig(context: string): KubeConfig {
